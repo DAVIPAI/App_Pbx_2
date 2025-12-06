@@ -5,15 +5,12 @@ from datetime import datetime
 import math
 import os
 
-# ========== CONFIG ==========
-#SUPABASE_URL = "https://wkrcusgvurtvdtezkywl.supabase.co"
-#SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndrcmN1c2d2dXJ0dmR0ZXpreXdsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk3MzgxNTAsImV4cCI6MjA2NTMxNDE1MH0.mebRUtf0x23Aua58NEMa8fLqtV12UMMZnI9E7lk4A-o"
-
+    
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 
-AUTO_REFRESH_MS = 60000  # 60s
+AUTO_REFRESH_MS = 240000  # 240s
 PAGE_TITLE = "📊 Painel Supervisório — Operações PBX"
 
 # ========== CONEXÃO ==========
