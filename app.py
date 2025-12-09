@@ -355,7 +355,7 @@ def render_secao_total(
         unsafe_allow_html=True,
     )
 
-    col_top1, col_top2 = st.columns(3)
+    col_top1, col_top2 = st.columns([2, 1])  # ✅ corrigido aqui
     with col_top1:
         st.markdown(f'<div class="op-title">{titulo}</div>', unsafe_allow_html=True)
         st.markdown(
