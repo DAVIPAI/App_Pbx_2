@@ -5,8 +5,10 @@ from datetime import datetime
 import math
 import os
 
+    
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
 
 AUTO_REFRESH_MS = 240000  # 240s
 PAGE_TITLE = "📊 Painel Supervisório — Operações PBX"
@@ -86,36 +88,15 @@ def fmt_moeda_brl(x):
     v = fmt_float(x, 2)
     return f"R$ {v}" if v != "-" else "-"
 
-def fmt_created_at(dt_str):
+def fmt_datetime_br(dt_str):
     """
-    Ajusta o 'Atualizado em' que está 3h adiantado:
-    subtrai 3 horas do valor vindo do banco.
-    """
-    if not dt_str:
-        return "-"
-    try:
-        ts = pd.to_datetime(dt_str, errors="coerce")
-        if pd.isna(ts):
-            return "-"
-        # corrige 3h adiantado -> tira 3 horas
-        ts = ts - pd.Timedelta(hours=3)
-        return ts.strftime("%d/%m/%Y %H:%M:%S")
-    except Exception:
-        return str(dt_str)
-
-def fmt_ultimo_lead(dt_str):
-    """
-    Ajusta o 'Último Lead' que está 3h atrasado:
-    soma 3 horas ao valor vindo do banco.
+    Formata a data exatamente como vem do banco, sem converter fuso,
+    pra bater com o que você vê no Supabase.
     """
     if not dt_str:
         return "-"
     try:
-        ts = pd.to_datetime(dt_str, errors="coerce")
-        if pd.isna(ts):
-            return "-"
-        # corrige 3h atrasado -> adiciona 3 horas
-        ts = ts + pd.Timedelta(hours=3)
+        ts = pd.to_datetime(dt_str)  # sem utc / sem tz_convert
         return ts.strftime("%d/%m/%Y %H:%M:%S")
     except Exception:
         return str(dt_str)
@@ -198,8 +179,8 @@ def render_secao(
     m_leads   = fmt_int(m["qtde_leads"])
     m_calls   = fmt_int(m["qtde_chamadas"])
     m_valor   = fmt_moeda_brl(m["valor_consumido"])
-    m_ult     = fmt_ultimo_lead(m["ultimo_lead"])      # AJUSTADO
-    updated   = fmt_created_at(m["created_at"])        # AJUSTADO
+    m_ult     = fmt_datetime_br(m["ultimo_lead"])
+    updated   = fmt_datetime_br(m["created_at"])
 
     # Card com fundo colorido
     st.markdown(
@@ -289,11 +270,11 @@ def render_secao_total(
     """
     Card de resumo PBX Total, calculando:
     - soma do mailing
-    - média do ticket médio (apenas ticket != 0)
+    - média do ticket médio
     - soma de leads
     - soma de chamadas
     - soma valor consumido
-    - último lead mais recente entre todos (ajustado +3h)
+    - último lead mais recente entre todos
     """
     # Filtra métricas válidas
     valid = [m for m in metrics_list if m is not None]
@@ -307,12 +288,8 @@ def render_secao_total(
     total_chamadas  = sum(m["qtde_chamadas"] for m in valid)
     total_valor     = sum(m["valor_consumido"] for m in valid)
 
-    # Média ticket médio (somente onde há valor e for diferente de 0)
-    tickets = [
-        m["ticket_medio"]
-        for m in valid
-        if m["ticket_medio"] is not None and m["ticket_medio"] != 0
-    ]
+    # Média ticket médio (somente onde há valor)
+    tickets = [m["ticket_medio"] for m in valid if m["ticket_medio"] is not None]
     ticket_medio_med = sum(tickets) / len(tickets) if tickets else None
 
     # Último lead mais recente (max por data) com proteção de parsing
@@ -322,8 +299,7 @@ def render_secao_total(
         ult_series = ult_series.dropna()
         if len(ult_series) > 0:
             ultimo_global = ult_series.max()
-            # ajusta +3h (mesma regra do card individual)
-            ultimo_global_str = fmt_ultimo_lead(ultimo_global)
+            ultimo_global_str = ultimo_global.strftime("%d/%m/%Y %H:%M:%S")
         else:
             ultimo_global_str = "-"
     else:
@@ -336,8 +312,7 @@ def render_secao_total(
         created_series = created_series.dropna()
         if len(created_series) > 0:
             updated_dt = created_series.max()
-            # ajusta -3h (mesma regra do card individual)
-            updated_str = fmt_created_at(updated_dt)
+            updated_str = updated_dt.strftime("%d/%m/%Y %H:%M:%S")
         else:
             updated_str = "-"
     else:
@@ -493,4 +468,4 @@ with col_pbx5:
         bg_color="#ffecef",      # rosado suave
     )
 
-st.caption("Atualização automática a cada 240 segundos (4 minutos).")
+st.caption("Atualização automática a cada 60 segundos.")
