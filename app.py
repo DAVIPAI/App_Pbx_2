@@ -5,10 +5,11 @@ from datetime import datetime
 import math
 import os
 
+# ========== CONFIG ==========
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-AUTO_REFRESH_MS = 240000  # 240s
+AUTO_REFRESH_MS = 240000  # 240s = 4 minutos
 PAGE_TITLE = "📊 Painel Supervisório — Operações PBX"
 
 # ========== CONEXÃO ==========
@@ -63,6 +64,7 @@ st.components.v1.html(
 )
 
 # ========== FUNÇÕES GERAIS ==========
+
 def fmt_int(x):
     try:
         return f"{int(x):,}".replace(",", ".")
@@ -88,8 +90,8 @@ def fmt_moeda_brl(x):
 
 def fmt_created_at(dt_str):
     """
-    Ajusta o 'Atualizado em' que está 3h adiantado:
-    subtrai 3 horas do valor vindo do banco.
+    'Atualizado em' está 3h adiantado -> subtrai 3 horas.
+    Aceita string ou Timestamp.
     """
     if not dt_str:
         return "-"
@@ -97,7 +99,6 @@ def fmt_created_at(dt_str):
         ts = pd.to_datetime(dt_str, errors="coerce")
         if pd.isna(ts):
             return "-"
-        # corrige 3h adiantado -> tira 3 horas
         ts = ts - pd.Timedelta(hours=3)
         return ts.strftime("%d/%m/%Y %H:%M:%S")
     except Exception:
@@ -105,8 +106,8 @@ def fmt_created_at(dt_str):
 
 def fmt_ultimo_lead(dt_str):
     """
-    Ajusta o 'Último Lead' que está 3h atrasado:
-    soma 3 horas ao valor vindo do banco.
+    'Último Lead' também está 3h adiantado -> subtrai 3 horas.
+    Aceita string ou Timestamp.
     """
     if not dt_str:
         return "-"
@@ -114,11 +115,11 @@ def fmt_ultimo_lead(dt_str):
         ts = pd.to_datetime(dt_str, errors="coerce")
         if pd.isna(ts):
             return "-"
-        # corrige 3h atrasado -> adiciona 3 horas
-        ts = ts + pd.Timedelta(hours=3)
+        ts = ts - pd.Timedelta(hours=3)
         return ts.strftime("%d/%m/%Y %H:%M:%S")
     except Exception:
         return str(dt_str)
+
 
 @st.cache_data(ttl=50)
 def carregar_ultima_linha(tabela: str):
@@ -198,8 +199,8 @@ def render_secao(
     m_leads   = fmt_int(m["qtde_leads"])
     m_calls   = fmt_int(m["qtde_chamadas"])
     m_valor   = fmt_moeda_brl(m["valor_consumido"])
-    m_ult     = fmt_ultimo_lead(m["ultimo_lead"])      # AJUSTADO
-    updated   = fmt_created_at(m["created_at"])        # AJUSTADO
+    m_ult     = fmt_ultimo_lead(m["ultimo_lead"])   # corrigido
+    updated   = fmt_created_at(m["created_at"])     # corrigido
 
     # Card com fundo colorido
     st.markdown(
@@ -293,7 +294,7 @@ def render_secao_total(
     - soma de leads
     - soma de chamadas
     - soma valor consumido
-    - último lead mais recente entre todos (ajustado +3h)
+    - último lead mais recente entre todos (ajustado -3h)
     """
     # Filtra métricas válidas
     valid = [m for m in metrics_list if m is not None]
@@ -307,7 +308,7 @@ def render_secao_total(
     total_chamadas  = sum(m["qtde_chamadas"] for m in valid)
     total_valor     = sum(m["valor_consumido"] for m in valid)
 
-    # Média ticket médio (somente onde há valor e for diferente de 0)
+    # Média ticket médio (somente valores não nulos e != 0)
     tickets = [
         m["ticket_medio"]
         for m in valid
@@ -315,29 +316,27 @@ def render_secao_total(
     ]
     ticket_medio_med = sum(tickets) / len(tickets) if tickets else None
 
-    # Último lead mais recente (max por data) com proteção de parsing
+    # Último lead mais recente (max por data)
     ultimos_validos = [m["ultimo_lead"] for m in valid if m["ultimo_lead"]]
     if ultimos_validos:
         ult_series = pd.to_datetime(ultimos_validos, errors="coerce")
         ult_series = ult_series.dropna()
         if len(ult_series) > 0:
             ultimo_global = ult_series.max()
-            # ajusta +3h (mesma regra do card individual)
-            ultimo_global_str = fmt_ultimo_lead(ultimo_global)
+            ultimo_global_str = fmt_ultimo_lead(ultimo_global)  # ajusta -3h
         else:
             ultimo_global_str = "-"
     else:
         ultimo_global_str = "-"
 
-    # Atualizado em: usa o mais recente created_at, também com proteção
+    # Atualizado em: usa o mais recente created_at
     created_validos = [m["created_at"] for m in valid if m["created_at"]]
     if created_validos:
         created_series = pd.to_datetime(created_validos, errors="coerce")
         created_series = created_series.dropna()
         if len(created_series) > 0:
             updated_dt = created_series.max()
-            # ajusta -3h (mesma regra do card individual)
-            updated_str = fmt_created_at(updated_dt)
+            updated_str = fmt_created_at(updated_dt)  # ajusta -3h
         else:
             updated_str = "-"
     else:
