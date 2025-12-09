@@ -106,7 +106,7 @@ def fmt_created_at(dt_str):
 
 def fmt_ultimo_lead(dt_str):
     """
-    'Último Lead' também está 3h adiantado -> subtrai 3 horas.
+    'Último Lead' está 3h atrasado -> soma 3 horas.
     Aceita string ou Timestamp.
     """
     if not dt_str:
@@ -115,7 +115,8 @@ def fmt_ultimo_lead(dt_str):
         ts = pd.to_datetime(dt_str, errors="coerce")
         if pd.isna(ts):
             return "-"
-        ts = ts - pd.Timedelta(hours=3)
+        # corrige atraso de 3h -> adiciona 3 horas
+        ts = ts + pd.Timedelta(hours=3)
         return ts.strftime("%d/%m/%Y %H:%M:%S")
     except Exception:
         return str(dt_str)
@@ -199,8 +200,8 @@ def render_secao(
     m_leads   = fmt_int(m["qtde_leads"])
     m_calls   = fmt_int(m["qtde_chamadas"])
     m_valor   = fmt_moeda_brl(m["valor_consumido"])
-    m_ult     = fmt_ultimo_lead(m["ultimo_lead"])   # corrigido
-    updated   = fmt_created_at(m["created_at"])     # corrigido
+    m_ult     = fmt_ultimo_lead(m["ultimo_lead"])   # soma 3h
+    updated   = fmt_created_at(m["created_at"])     # subtrai 3h
 
     # Card com fundo colorido
     st.markdown(
@@ -294,7 +295,7 @@ def render_secao_total(
     - soma de leads
     - soma de chamadas
     - soma valor consumido
-    - último lead mais recente entre todos (ajustado -3h)
+    - último lead mais recente entre todos (ajustado +3h)
     """
     # Filtra métricas válidas
     valid = [m for m in metrics_list if m is not None]
@@ -323,7 +324,7 @@ def render_secao_total(
         ult_series = ult_series.dropna()
         if len(ult_series) > 0:
             ultimo_global = ult_series.max()
-            ultimo_global_str = fmt_ultimo_lead(ultimo_global)  # ajusta -3h
+            ultimo_global_str = fmt_ultimo_lead(ultimo_global)  # +3h
         else:
             ultimo_global_str = "-"
     else:
@@ -336,7 +337,7 @@ def render_secao_total(
         created_series = created_series.dropna()
         if len(created_series) > 0:
             updated_dt = created_series.max()
-            updated_str = fmt_created_at(updated_dt)  # ajusta -3h
+            updated_str = fmt_created_at(updated_dt)  # -3h
         else:
             updated_str = "-"
     else:
@@ -354,7 +355,7 @@ def render_secao_total(
         unsafe_allow_html=True,
     )
 
-    col_top1, col_top2 = st.columns([2, 1])
+    col_top1, col_top2 = st.columns(3)
     with col_top1:
         st.markdown(f'<div class="op-title">{titulo}</div>', unsafe_allow_html=True)
         st.markdown(
