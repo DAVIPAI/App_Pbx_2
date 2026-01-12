@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 from supabase import create_client
 import pandas as pd
@@ -402,12 +401,11 @@ def render_secao_total(
 
 
 # ==========================
-# COLETA DAS MÉTRICAS PBX1..PBX4  ✅ (inclui PBX4)
+# COLETA DAS MÉTRICAS PBX1..PBX3 (✅ removidos PBX4 e PBX5)
 # ==========================
 metrics_pbx1 = get_metrics_pbx("operacao_pbx1", "pbx1")
 metrics_pbx2 = get_metrics_pbx("operacao_pbx2", "pbx2")
 metrics_pbx3 = get_metrics_pbx("operacao_pbx3", "pbx3")
-metrics_pbx4 = get_metrics_pbx("operacao_pbx4", "pbx4")  # ✅ novo
 
 # ==========================
 # LAYOUT: PRIMEIRA LINHA -> PBX TOTAL, PBX1, PBX2
@@ -417,8 +415,8 @@ col_total, col_pbx1, col_pbx2 = st.columns(3)
 with col_total:
     render_secao_total(
         titulo="Operação PBX Total",
-        subtitulo="Resumo consolidado das operações PBX1 a PBX4.",
-        metrics_list=[metrics_pbx1, metrics_pbx2, metrics_pbx3, metrics_pbx4],  # ✅ inclui PBX4
+        subtitulo="Resumo consolidado das operações PBX1 a PBX3.",
+        metrics_list=[metrics_pbx1, metrics_pbx2, metrics_pbx3],
         bg_color="#e5f3ff",   # mantém a cor
     )
 
@@ -441,9 +439,9 @@ with col_pbx2:
     )
 
 # ==========================
-# SEGUNDA LINHA -> PBX3, PBX4 (✅ inclui PBX4)
+# SEGUNDA LINHA -> PBX3 (✅ removidos PBX4 e PBX5)
 # ==========================
-col_pbx3, col_pbx4, col_spacer = st.columns(3)
+col_pbx3, col_spacer1, col_spacer2 = st.columns(3)
 
 with col_pbx3:
     render_secao(
@@ -454,14 +452,4 @@ with col_pbx3:
         bg_color="#f4ecff",      # mantém a cor
     )
 
-with col_pbx4:
-    render_secao(
-        titulo="Operação PBX4",
-        subtitulo="Indicadores dedicados à operação PBX4.",
-        tabela="operacao_pbx4",
-        sufixo="pbx4",
-        bg_color="#fff6e5",      # mantém a cor que você usava no PBX4
-    )
-
 st.caption("Atualização automática a cada 240 segundos (4 minutos).")
-```
