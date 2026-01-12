@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 from supabase import create_client
 import pandas as pd
@@ -464,4 +463,4 @@ with col_pbx4:
     )
 
 st.caption("Atualização automática a cada 240 segundos (4 minutos).")
-```
+
