@@ -12,10 +12,6 @@ AUTO_REFRESH_MS = 240000  # 240s = 4 minutos
 PAGE_TITLE = "📊 Painel Supervisório — Operações PBX"
 
 # ========== CONEXÃO ==========
-if not SUPABASE_URL or not SUPABASE_KEY:
-    st.error("Variáveis de ambiente SUPABASE_URL e/ou SUPABASE_KEY não definidas.")
-    st.stop()
-
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.set_page_config(page_title=PAGE_TITLE, layout="wide")
@@ -56,7 +52,7 @@ st.markdown(
 
     /* ✅ Aumenta apenas os números do card "PBX Total" */
     .pbx-total-metric [data-testid="stMetricValue"] {
-        font-size: 1.35rem !important;
+        font-size: 1.35rem !important; /* ajuste fino aqui */
         font-weight: 800 !important;
         line-height: 1.05 !important;
     }
@@ -130,36 +126,16 @@ def fmt_ultimo_lead(dt_str):
 
 @st.cache_data(ttl=50)
 def carregar_ultima_linha(tabela: str):
-    """
-    Busca a última linha da tabela. Tenta ordenar por created_at.
-    Se não existir (ex.: typo 'creta_at'), usa fallback.
-    """
-    try:
-        resp = (
-            supabase
-            .table(tabela)
-            .select("*")
-            .order("created_at", desc=True)
-            .limit(1)
-            .execute()
-        )
-        dados = resp.data or []
-        return dados[0] if dados else None
-    except Exception:
-        # fallback para tabelas com typo de coluna
-        try:
-            resp = (
-                supabase
-                .table(tabela)
-                .select("*")
-                .order("creta_at", desc=True)
-                .limit(1)
-                .execute()
-            )
-            dados = resp.data or []
-            return dados[0] if dados else None
-        except Exception:
-            return None
+    resp = (
+        supabase
+        .table(tabela)
+        .select("*")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    dados = resp.data or []
+    return dados[0] if len(dados) else None
 
 def get_metrics_pbx(tabela: str, sufixo: str):
     """
@@ -182,24 +158,15 @@ def get_metrics_pbx(tabela: str, sufixo: str):
         except Exception:
             return 0
 
-    # Campos esperados por padrão
-    status_campanhas = row.get(f"st_campanhas_{sufixo}")
-    qtde_mailing = _to_int(row.get(f"qtde_mailing_{sufixo}"))
-    ticket_medio = row.get(f"ticket_medio_{sufixo}")
-    ticket_medio_f = _to_float(ticket_medio) if ticket_medio is not None else None
-
-    # aceita lead/ leads por segurança
-    qtde_leads_raw = row.get(f"qtde_lead_{sufixo}")
-    if qtde_leads_raw is None:
-        qtde_leads_raw = row.get(f"qtde_leads_{sufixo}")
-    qtde_leads = _to_int(qtde_leads_raw)
-
-    qtde_chamadas = _to_int(row.get(f"qtde_chamadas_{sufixo}"))
-    ultimo_lead = row.get(f"ultimo_lead_{sufixo}")
-    valor_consumido = _to_float(row.get(f"valor_consumido_{sufixo}"))
-
-    # aceita created_at / creta_at
-    created_at = row.get("created_at") or row.get("creta_at")
+    status_campanhas   = row.get(f"st_campanhas_{sufixo}")
+    qtde_mailing       = _to_int(row.get(f"qtde_mailing_{sufixo}"))
+    ticket_medio       = row.get(f"ticket_medio_{sufixo}")
+    ticket_medio_f     = _to_float(ticket_medio) if ticket_medio is not None else None
+    qtde_leads         = _to_int(row.get(f"qtde_lead_{sufixo}"))
+    qtde_chamadas      = _to_int(row.get(f"qtde_chamadas_{sufixo}"))
+    ultimo_lead        = row.get(f"ultimo_lead_{sufixo}")
+    valor_consumido    = _to_float(row.get(f"valor_consumido_{sufixo}"))
+    created_at         = row.get("created_at")
 
     return {
         "status": status_campanhas,
@@ -319,8 +286,6 @@ def render_secao_total(
     - soma de chamadas
     - soma valor consumido
     - último lead mais recente entre todos (sem offset extra)
-
-    OBS: PBX5 não entra aqui (quem chama controla isso).
     """
     valid = [m for m in metrics_list if m is not None]
     if not valid:
@@ -365,7 +330,7 @@ def render_secao_total(
     m_calls   = fmt_int(total_chamadas)
     m_valor   = fmt_moeda_brl(total_valor)
 
-    # wrapper para aumentar apenas os números do PBX Total via CSS
+    # ✅ wrapper para aumentar apenas os números do PBX Total via CSS (.pbx-total-metric ...)
     st.markdown('<div class="pbx-total-metric">', unsafe_allow_html=True)
 
     st.markdown(
@@ -436,13 +401,12 @@ def render_secao_total(
 
 
 # ==========================
-# COLETA DAS MÉTRICAS PBX1..PBX5
+# COLETA DAS MÉTRICAS PBX1..PBX4  ✅ (inclui PBX4)
 # ==========================
 metrics_pbx1 = get_metrics_pbx("operacao_pbx1", "pbx1")
 metrics_pbx2 = get_metrics_pbx("operacao_pbx2", "pbx2")
 metrics_pbx3 = get_metrics_pbx("operacao_pbx3", "pbx3")
-metrics_pbx4 = get_metrics_pbx("operacao_pbx4", "pbx4")
-metrics_pbx5 = get_metrics_pbx("operacao_pbx5", "pbx5")  # ✅ incluído
+metrics_pbx4 = get_metrics_pbx("operacao_pbx4", "pbx4")  # ✅ novo
 
 # ==========================
 # LAYOUT: PRIMEIRA LINHA -> PBX TOTAL, PBX1, PBX2
@@ -453,8 +417,8 @@ with col_total:
     render_secao_total(
         titulo="Operação PBX Total",
         subtitulo="Resumo consolidado das operações PBX1 a PBX4.",
-        metrics_list=[metrics_pbx1, metrics_pbx2, metrics_pbx3, metrics_pbx4],  # ✅ PBX5 fora do total
-        bg_color="#e5f3ff",
+        metrics_list=[metrics_pbx1, metrics_pbx2, metrics_pbx3, metrics_pbx4],  # ✅ inclui PBX4
+        bg_color="#e5f3ff",   # mantém a cor
     )
 
 with col_pbx1:
@@ -463,7 +427,7 @@ with col_pbx1:
         subtitulo="Monitoramento em tempo quase real — PBX1.",
         tabela="operacao_pbx1",
         sufixo="pbx1",
-        bg_color="#eef3ff",
+        bg_color="#eef3ff",      # mantém a cor
     )
 
 with col_pbx2:
@@ -472,13 +436,13 @@ with col_pbx2:
         subtitulo="Indicadores dedicados à operação PBX2.",
         tabela="operacao_pbx2",
         sufixo="pbx2",
-        bg_color="#e7f8f0",
+        bg_color="#e7f8f0",      # mantém a cor
     )
 
 # ==========================
-# SEGUNDA LINHA -> PBX3, PBX4, PBX5
+# SEGUNDA LINHA -> PBX3, PBX4 (✅ inclui PBX4)
 # ==========================
-col_pbx3, col_pbx4, col_pbx5 = st.columns(3)
+col_pbx3, col_pbx4, col_spacer = st.columns(3)
 
 with col_pbx3:
     render_secao(
@@ -486,7 +450,7 @@ with col_pbx3:
         subtitulo="Visão consolidada da operação PBX3.",
         tabela="operacao_pbx3",
         sufixo="pbx3",
-        bg_color="#f4ecff",
+        bg_color="#f4ecff",      # mantém a cor
     )
 
 with col_pbx4:
@@ -495,16 +459,8 @@ with col_pbx4:
         subtitulo="Indicadores dedicados à operação PBX4.",
         tabela="operacao_pbx4",
         sufixo="pbx4",
-        bg_color="#fff6e5",
-    )
-
-with col_pbx5:
-    render_secao(
-        titulo="Operação PBX5",
-        subtitulo="Indicadores dedicados à operação PBX5.",
-        tabela="operacao_pbx5",
-        sufixo="pbx5",
-        bg_color="#ffecef",
+        bg_color="#fff6e5",      # mantém a cor que você usava no PBX4
     )
 
 st.caption("Atualização automática a cada 240 segundos (4 minutos).")
+
